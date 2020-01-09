@@ -86,18 +86,17 @@ namespace ExpressBase.AuthServer
 
                 var redisServer = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_SERVER);
 
-                //if (env == "Staging")
-                //{
-                //    container.Register<IRedisClientsManager>(c => new RedisManagerPool(redisServer));
-                //}
-                //else
-                //{
-                var redisPassword = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_PASSWORD);
-                var redisPort = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_PORT);
-                var redisConnectionString = string.Format("redis://{0}@{1}:{2}", redisPassword, redisServer, redisPort);
-                container.Register<IRedisClientsManager>(c => new RedisManagerPool(redisConnectionString));
-
-                //}
+                if (env == "Staging")
+                {
+                    container.Register<IRedisClientsManager>(c => new RedisManagerPool(redisServer));
+                }
+                else
+                {
+                    var redisPassword = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_PASSWORD);
+                    var redisPort = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_PORT);
+                    var redisConnectionString = string.Format("redis://{0}@{1}:{2}", redisPassword, redisServer, redisPort);
+                    container.Register<IRedisClientsManager>(c => new RedisManagerPool(redisConnectionString));
+                }
 
                 container.Register<IAuthRepository>(c => new MyRedisAuthRepository(c.Resolve<IRedisClientsManager>()));
 
