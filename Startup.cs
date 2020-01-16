@@ -40,6 +40,8 @@ namespace ExpressBase.AuthServer
 
             public override void Configure(Container container)
             {
+                LogManager.LogFactory = new ConsoleLogFactory(debugEnabled: true);
+
                 MyJwtAuthProvider jwtprovider = new MyJwtAuthProvider
                 {
                     HashAlgorithm = "RS256",
@@ -74,8 +76,6 @@ namespace ExpressBase.AuthServer
                     }
                 };
 
-                string env = Environment.GetEnvironmentVariable(EnvironmentConstants.ASPNETCORE_ENVIRONMENT);
-
                 this.Plugins.Add(new AuthFeature(() =>
                                 new CustomUserSession(),
                                 new IAuthProvider[]
@@ -83,6 +83,9 @@ namespace ExpressBase.AuthServer
                                     new MyCredentialsAuthProvider(AppSettings) { PersistSession = true },
                                     jwtprovider,
                                 }));
+
+                string env = Environment.GetEnvironmentVariable(EnvironmentConstants.ASPNETCORE_ENVIRONMENT);
+
 
                 var redisServer = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_REDIS_SERVER);
 
