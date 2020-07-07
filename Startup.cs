@@ -47,10 +47,10 @@ namespace ExpressBase.AuthServer
                     HashAlgorithm = "RS256",
                     PrivateKeyXml = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_JWT_PRIVATE_KEY_XML),
                     PublicKeyXml = Environment.GetEnvironmentVariable(EnvironmentConstants.EB_JWT_PUBLIC_KEY_XML),
-#if (DEBUG)
+//#if (DEBUG)
                     RequireSecureConnection = false,
                     //EncryptPayload = true,
-#endif
+//#endif
                     ExpireTokensIn = TimeSpan.FromSeconds(90),
                     ExpireRefreshTokensIn = TimeSpan.FromHours(24),
                     PersistSession = true,
