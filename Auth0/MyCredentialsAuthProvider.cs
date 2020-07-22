@@ -53,11 +53,11 @@ namespace ExpressBase.ServiceStack.Auth0
                 //         }
 
                 User _authUser = null;
-				if (whichContext.Equals(RoutingConstants.TC))
-				{
-					_authUser = User.GetDetailsTenant(EbConnectionFactory.DataDB, UserName, password, ip);
-					Logger.Info("TryAuthenticate -> Tenant");
-				}
+                if (whichContext.Equals(RoutingConstants.TC))
+                {
+                    _authUser = User.GetDetailsTenant(EbConnectionFactory.DataDB, UserName, password, ip);
+                    Logger.Info("TryAuthenticate -> Tenant");
+                }
                 else if (request.Meta.ContainsKey("anonymous"))// && whichContext.Equals("bc"))
                 {
                     var emailId = request.Meta.ContainsKey("emailId") ? request.Meta["emailId"] : string.Empty;//for anonymous
@@ -86,7 +86,7 @@ namespace ExpressBase.ServiceStack.Auth0
                     Logger.Info("TryAuthenticate -> socialId");
 
                 }
-                else if (request.Meta.ContainsKey("sso") && (whichContext.Equals("dc") || whichContext.Equals("uc")))
+                else if (request.Meta.ContainsKey("sso") && (whichContext.Equals(TokenConstants.DC) || whichContext.Equals(TokenConstants.UC) || whichContext.Equals(TokenConstants.BC)))
                 {
 
                     _authUser = User.GetDetailsSSO(EbConnectionFactory.DataDB, UserName, whichContext, ip, deviceId, userAgent);
@@ -104,18 +104,18 @@ namespace ExpressBase.ServiceStack.Auth0
                     if (_authUser.UserId == -1)
                         throw new Exception("Access Denied");
                     if (_authUser.Email != null)
-                    {						
-						CustomUserSession session = authService.GetSession(false) as CustomUserSession;
+                    {
+                        CustomUserSession session = authService.GetSession(false) as CustomUserSession;
                         var redisClient = authService.TryResolve<IRedisClientsManager>().GetClient();
-						if (_authUser.Email.Equals(TokenConstants.ANONYM_EMAIL))
-						{
-							session.Aid = _authUser.UserId;
-							_authUser.UserId = 1;
-						}
-						session.CId = cid;
+                        if (_authUser.Email.Equals(TokenConstants.ANONYM_EMAIL))
+                        {
+                            session.Aid = _authUser.UserId;
+                            _authUser.UserId = 1;
+                        }
+                        session.CId = cid;
                         _authUser.CId = cid;
                         session.Uid = _authUser.UserId;
-						session.Email = _authUser.Email;
+                        session.Email = _authUser.Email;
                         session.IsAuthenticated = true;
                         session.User = _authUser;
                         session.WhichConsole = whichContext;
@@ -132,11 +132,12 @@ namespace ExpressBase.ServiceStack.Auth0
                 }
                 return (_authUser != null);
 
-            } catch(Exception ee)
+            }
+            catch (Exception ee)
             {
                 if (ee.Message == "Access Denied")
                     throw new Exception("Access Denied");
-                Logger.Info("Exception: "+ ee.ToJson());
+                Logger.Info("Exception: " + ee.ToJson());
                 throw ee;
             }
         }
@@ -162,7 +163,7 @@ namespace ExpressBase.ServiceStack.Auth0
                             UserName = _customUserSession.UserName,
                             User = _customUserSession.User,
                             SessionId = _customUserSession.Id,
-							AnonId = _customUserSession.Aid
+                            AnonId = _customUserSession.Aid
                         };
                     }
                     return authResponse;
@@ -192,7 +193,7 @@ namespace ExpressBase.ServiceStack.Auth0
                 EbConnectionFactory EbConnectionFactory = service.TryResolve<IEbConnectionFactory>() as EbConnectionFactory;
                 User.Logout(EbConnectionFactory.DataDB);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("Exception in Logout : " + ex.Message);
             }
