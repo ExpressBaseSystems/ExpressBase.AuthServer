@@ -86,7 +86,7 @@ namespace ExpressBase.ServiceStack.Auth0
                     Logger.Info("TryAuthenticate -> socialId");
 
                 }
-                else if (request.Meta.ContainsKey("sso") && (whichContext.Equals("dc") || whichContext.Equals("uc")))
+                else if (request.Meta.ContainsKey("sso") && (whichContext.Equals(TokenConstants.DC) || whichContext.Equals(TokenConstants.UC) || whichContext.Equals(TokenConstants.BC)))
                 {
 
                     _authUser = User.GetDetailsSSO(EbConnectionFactory.DataDB, UserName, whichContext, ip, deviceId, userAgent);
@@ -121,7 +121,7 @@ namespace ExpressBase.ServiceStack.Auth0
                         session.WhichConsole = whichContext;
                         session.DBVendor = EbConnectionFactory.DataDB.Vendor;
                         _authUser.wc = whichContext;
-                        _authUser.AuthId = string.Format(TokenConstants.SUB_FORMAT, cid, _authUser.Email, whichContext);
+                        _authUser.AuthId = string.Format(TokenConstants.SUB_FORMAT, cid, _authUser.Id, whichContext);
                         session.UserAuthId = _authUser.AuthId;
                         session.SourceIp = _authUser.SourceIp;
 
