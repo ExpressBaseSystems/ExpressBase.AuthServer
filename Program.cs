@@ -1,19 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-
 namespace ExpressBase.AuthServer
 {
     public class Program
     {
         public static void Main(string[] args)
-        {
+        { 
+            Task.Run(() => EbWebsocket.InitialiseWssConnection());
             CreateWebHostBuilder(args).Build().Run();
         }
 
@@ -24,5 +19,5 @@ namespace ExpressBase.AuthServer
                     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
                 })
                 .UseUrls(urls: "http://*:41000/");
-    }
+    }  
 }
