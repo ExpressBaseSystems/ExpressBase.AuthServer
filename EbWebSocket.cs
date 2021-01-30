@@ -1,4 +1,4 @@
-﻿using System; 
+﻿using System;
 using System.Threading.Tasks;
 using System.Net.WebSockets;
 using System.Threading;
@@ -38,7 +38,7 @@ namespace ExpressBase.AuthServer
         {
             do
             {
-                Console.WriteLine("ENTERED");
+                Console.WriteLine("WS STARTING");
                 using (ClientWebSocket socket = new ClientWebSocket())
                     try
                     {
@@ -118,6 +118,7 @@ namespace ExpressBase.AuthServer
         {
             try
             {
+                Console.WriteLine(alertJson);
                 JObject alert = JObject.Parse(alertJson);
                 if (alert.ContainsKey("alertType"))
                 {
@@ -129,7 +130,7 @@ namespace ExpressBase.AuthServer
                         string status = (alert.ContainsKey("status")) ? alert.GetValue("status").ToString() : string.Empty;
                         string message = (alert.ContainsKey("message")) ? alert.GetValue("message").ToString() : string.Empty;
                         EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
-                        string Query = string.Format("INSERT INTO delivery_status (status,transaction_id, message eb_created_at) VALUES ('{0}','{1}', '{2}', Now());", status, txn_id, message);
+                        string Query = string.Format("INSERT INTO delivery_status(status, transaction_id, message, eb_created_at) VALUES ('{0}','{1}', '{2}', Now());", status, txn_id, message);
                         EbConnectionFactory.DataDB.DoQuery(Query);
                     }
                     else if (alerttype == AlertTypes.BROADCAST_REQUEST.ToString())
@@ -140,17 +141,34 @@ namespace ExpressBase.AuthServer
                         for (int i = 0; i < txn_ids.Length; i++)
                         {
                             EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
-                            string Query = string.Format("INSERT INTO delivery_status (status,transaction_id, eb_created_at) VALUES ('{0}','{1}', '{2}', Now());", status, txn_ids[i], message);
+                            string Query = string.Format("INSERT INTO delivery_status(status, transaction_id, message, eb_created_at) VALUES ('{0}','{1}', '{2}', Now());", status, txn_ids[i], message);
+                            EbConnectionFactory.DataDB.DoQuery(Query);
+                        }
+                    }
+                    else if (alerttype == AlertTypes.TRIP_STARTED.ToString() || alerttype == AlertTypes.TRIP_ENDED.ToString())
+                    {
+                        if (alert.ContainsKey("tripDetails"))
+                        {
+                            JObject details = JObject.Parse(alert.GetValue("tripDetails").ToString());
+                            int tripid = (details.ContainsKey("tripId")) ? Convert.ToInt32(details.GetValue("tripId")) : 0;
+                            int driverid = (details.ContainsKey("driverId")) ? Convert.ToInt32(details.GetValue("driverId")) : 0;
+                            string driver_name = (alert.ContainsKey("user")) ? alert.GetValue("user").ToString() : string.Empty;
+                            string status = (details.ContainsKey("tripStatus")) ? details.GetValue("tripStatus").ToString() : string.Empty;
+                            double distanceCovered = (details.ContainsKey("distanceCovered")) ? Convert.ToDouble(details.GetValue("distanceCovered")) / 1000 : 0;
+                            EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
+                            string Query = string.Format(@"INSERT INTO trips(trip_id, driver_id, driver_name, status, distance_covered, eb_created_at)  
+                                                    VALUES ({0}, {1}, '{2}', '{3}', {4}, Now());", tripid, driverid, driver_name, status, distanceCovered);
                             EbConnectionFactory.DataDB.DoQuery(Query);
                         }
                     }
                     else if (alerttype == AlertTypes.TRIP_EVENT_FIRED.ToString())
+                        Console.WriteLine(alertJson);
+                    else if (alerttype == AlertTypes.TRIP_STATUS_CHANGED.ToString())
+                        Console.WriteLine(alertJson);
+                    else
                     {
-
-                        EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
-
+                        Console.WriteLine("----" + alertJson);
                     }
-                    // else if (alerttype == AlertTypes.TRIP_STATUS_CHANGED.ToString()) { }
                 }
             }
             catch (Exception e)
@@ -164,7 +182,9 @@ namespace ExpressBase.AuthServer
             TX_STATUS_CHANGED,
             TRIP_STATUS_CHANGED,
             TRIP_EVENT_FIRED,
-            BROADCAST_REQUEST
+            BROADCAST_REQUEST,
+            TRIP_ENDED,
+            TRIP_STARTED
         }
     }
 }
