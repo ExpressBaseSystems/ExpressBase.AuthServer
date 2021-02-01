@@ -132,6 +132,8 @@ namespace ExpressBase.AuthServer
                         EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
                         string Query = string.Format("INSERT INTO delivery_status(status, transaction_id, message, eb_created_at) VALUES ('{0}','{1}', '{2}', Now());", status, txn_id, message);
                         EbConnectionFactory.DataDB.DoQuery(Query);
+                        string Query2 = string.Format(@"UPDATE delivery_requests SET currentstatus = '{0}' WHERE auto_id = '{1}';", status, txn_id);
+                        EbConnectionFactory.DataDB.DoQuery(Query2);
                     }
                     else if (alerttype == AlertTypes.BROADCAST_REQUEST.ToString())
                     {
@@ -145,20 +147,90 @@ namespace ExpressBase.AuthServer
                             EbConnectionFactory.DataDB.DoQuery(Query);
                         }
                     }
-                    else if (alerttype == AlertTypes.TRIP_STARTED.ToString() || alerttype == AlertTypes.TRIP_ENDED.ToString())
+                    else if (alerttype == AlertTypes.TRIP_STARTED.ToString())
+                    {
+                        JObject details = JObject.Parse(alert.GetValue("tripDetails").ToString());
+                        int ch_tripid = (details.ContainsKey("tripId")) ? Convert.ToInt32(details.GetValue("tripId")) : 0;
+                        int ch_driverid = (details.ContainsKey("driverId")) ? Convert.ToInt32(details.GetValue("driverId")) : 0;
+                        string driver_name = (alert.ContainsKey("user")) ? alert.GetValue("user").ToString() : string.Empty;
+                        string status = (details.ContainsKey("tripStatus")) ? details.GetValue("tripStatus").ToString() : string.Empty;
+
+                        EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
+                        string Query1 = string.Format(@"INSERT INTO trips(ch_trip_id, ch_driver_id, driver_name, eb_created_at)  
+                                                    VALUES ({0}, {1}, '{2}', Now()) RETURNING id;", ch_tripid, ch_driverid, driver_name);
+                        int eb_trips_id = EbConnectionFactory.DataDB.ExecuteScalar<int>(Query1);
+
+                        string Query2 = string.Format(@"INSERT INTO trip_status(trips_id, ch_trip_id, status, eb_created_at)  
+                                                    VALUES ({0}, {1}, '{2}', Now()) RETURNING id;", eb_trips_id, ch_tripid, status);
+                        EbConnectionFactory.DataDB.ExecuteScalar<int>(Query2);
+
+                    }
+                    else if (alerttype == AlertTypes.TRIP_ENDED.ToString())
                     {
                         if (alert.ContainsKey("tripDetails"))
                         {
+                            double distanceCovered;
                             JObject details = JObject.Parse(alert.GetValue("tripDetails").ToString());
-                            int tripid = (details.ContainsKey("tripId")) ? Convert.ToInt32(details.GetValue("tripId")) : 0;
-                            int driverid = (details.ContainsKey("driverId")) ? Convert.ToInt32(details.GetValue("driverId")) : 0;
-                            string driver_name = (alert.ContainsKey("user")) ? alert.GetValue("user").ToString() : string.Empty;
+
+                            int ch_tripid = (details.ContainsKey("tripId")) ? Convert.ToInt32(details.GetValue("tripId")) : 0;
                             string status = (details.ContainsKey("tripStatus")) ? details.GetValue("tripStatus").ToString() : string.Empty;
-                            double distanceCovered = (details.ContainsKey("distanceCovered")) ? Convert.ToDouble(details.GetValue("distanceCovered")) / 1000 : 0;
+
+                            string Query2 = string.Format(@"INSERT INTO trip_status(trips_id, ch_trip_id, status, eb_created_at)  
+                                                    SELECT id, {0}, '{1}', Now() FROM trips WHERE ch_trip_id = {0};", ch_tripid, status);
                             EbConnectionFactory EbConnectionFactory = new EbConnectionFactory(EbWebsocket.DbName, RedisClient);
-                            string Query = string.Format(@"INSERT INTO trips(trip_id, driver_id, driver_name, status, distance_covered, eb_created_at)  
-                                                    VALUES ({0}, {1}, '{2}', '{3}', {4}, Now());", tripid, driverid, driver_name, status, distanceCovered);
-                            EbConnectionFactory.DataDB.DoQuery(Query);
+                            EbConnectionFactory.DataDB.ExecuteScalar<int>(Query2);
+                            Uri uri = new Uri("https://chaalak.ai/Chaalak/rest/integration/trip/getTripById?tripId=" + ch_tripid);
+                            try
+                            {
+                                RestClient client = new RestClient(uri.GetLeftPart(UriPartial.Authority));
+                                RestRequest request = new RestRequest(uri.PathAndQuery, RestSharp.Method.GET);
+                                request.AddHeader("Authorization", $"Bearer " + GetToken());
+                                IRestResponse resp = client.Execute(request);
+
+                                if (resp.IsSuccessful)
+                                {
+                                    object result = resp.Content;
+                                    JObject trip_details = JObject.Parse(result.ToString());
+                                    distanceCovered = (details.ContainsKey("distanceCovered")) ? Convert.ToDouble(details.GetValue("distanceCovered")) / 1000 : 0;
+
+                                }
+                                else
+                                    throw new Exception($"Failed to execute api [{ "getTripById"}], {resp.ErrorMessage}, {resp.Content}");
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new Exception("[ExecuteThirdPartyApi], " + ex.Message);
+                            }
+                            distanceCovered = 1.57;
+                            double rate = 20 * distanceCovered;//hardcoded value
+                            string Query = string.Format(@"UPDATE trips SET distance_covered = {0}, rate = {1}, eb_modified_at = NOW() WHERE ch_trip_id = {2};", distanceCovered, rate, ch_tripid);
+                            int eb_trips_id = EbConnectionFactory.DataDB.ExecuteScalar<int>(Query);
+
+                            //JArray broadcast_details = JArray.Parse(details.GetValue("tripDetails").ToString()); && facility id
+                            //for (int i = 0; i < broadcast_details.Count; i++)
+                            //{
+                            //  int broadcast_id = Convert.ToInt32(broadcast_details[i]["broadcastRequestId"]);
+                            //} 
+                            Uri uri2 = new Uri("https://chaalak.ai/Chaalak/rest/integration/trip/updateTripAmount?tripAmount=" + rate + "&tripId=" + ch_tripid);
+                            try
+                            {
+                                RestClient client = new RestClient(uri2.GetLeftPart(UriPartial.Authority));
+                                RestRequest request = new RestRequest(uri2.PathAndQuery, RestSharp.Method.GET);
+                                request.AddHeader("Authorization", $"Bearer " + GetToken());
+                                IRestResponse resp = client.Execute(request);
+
+                                if (resp.IsSuccessful)
+                                {
+                                    object result = resp.Content;
+                                    JObject trip_details = JObject.Parse(result.ToString());
+                                }
+                                else
+                                    throw new Exception($"Failed to execute api [{ "updateTripAmount"}], {resp.ErrorMessage}, {resp.Content}");
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new Exception("[ExecuteThirdPartyApi], " + ex.Message);
+                            }
                         }
                     }
                     else if (alerttype == AlertTypes.TRIP_EVENT_FIRED.ToString())
