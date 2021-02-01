@@ -200,8 +200,7 @@ namespace ExpressBase.AuthServer
                             catch (Exception ex)
                             {
                                 throw new Exception("[ExecuteThirdPartyApi], " + ex.Message);
-                            }
-                            distanceCovered = 1.57;
+                            } 
                             double rate = 20 * distanceCovered;//hardcoded value
                             string Query = string.Format(@"UPDATE trips SET distance_covered = {0}, rate = {1}, eb_modified_at = NOW() WHERE ch_trip_id = {2};", distanceCovered, rate, ch_tripid);
                             int eb_trips_id = EbConnectionFactory.DataDB.ExecuteScalar<int>(Query);
