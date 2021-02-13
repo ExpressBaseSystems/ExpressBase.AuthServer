@@ -170,9 +170,9 @@ namespace ExpressBase.AuthServer
                 Query += string.Format(@"INSERT INTO delivery_status(status, transaction_id, message, eb_created_at) 
                                                VALUES ('{0}','{1}', '{2}', Now());", status, txn_ids[i], message);
                 if (status == "ACCEPTED")
-                    Query += string.Format(@"UPDATE delivery_requests SET driver_accept = 'T' WHERE  auto_id ='{0}';", txn_ids[i]);
+                    Query += string.Format(@"UPDATE delivery_requests SET driver_accept = 'T' , currentstatus='DRIVER ACCEPTED' WHERE auto_id ='{0}';", txn_ids[i]);
                 else
-                    Query += string.Format(@"UPDATE delivery_requests SET driver_accept = 'F' WHERE  auto_id ='{0}';", txn_ids[i]);
+                    Query += string.Format(@"UPDATE delivery_requests SET driver_accept = 'F' , currentstatus='DRIVER REJECTED' WHERE auto_id ='{0}';", txn_ids[i]);
             }
            
             EbConnectionFactory.DataDB.DoQuery(Query);
@@ -191,7 +191,7 @@ namespace ExpressBase.AuthServer
             for (int i = 0; i < broadcast_details.Count; i++)
                 broadcast_ids.Add(Convert.ToInt32(broadcast_details[i]["id"]["broadcastRequestId"]));
 
-            string Query1 = string.Format(@"UPDATE delivery_requests SET driver_id = {0} WHERE auto_id = ANY(
+            string Query1 = string.Format(@"UPDATE delivery_requests SET driver_id = AND currentstatus='ON PROGRESS' {0} WHERE auto_id = ANY(
             SELECT unnest((SELECT string_to_array(string_agg(transaction_ids,','),',') FROM broadcasts WHERE ch_broadcast_id IN({1}))));", ch_driverid, String.Join(",", broadcast_ids));
 
             Query1 += string.Format(@"INSERT INTO trips(ch_trip_id, ch_driver_id, started_by, eb_created_at, ch_facility_id, ch_broadcast_ids)  
