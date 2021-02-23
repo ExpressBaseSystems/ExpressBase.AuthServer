@@ -191,7 +191,7 @@ namespace ExpressBase.AuthServer
             for (int i = 0; i < broadcast_details.Count; i++)
                 broadcast_ids.Add(Convert.ToInt32(broadcast_details[i]["id"]["broadcastRequestId"]));
 
-            string Query1 = string.Format(@"UPDATE delivery_requests SET driver_id = {0}, currentstatus='ON PROGRESS'  WHERE auto_id = ANY(
+            string Query1 = string.Format(@"UPDATE delivery_requests SET driver_id = {0}, currentstatus='IN PROGRESS'  WHERE auto_id = ANY(
             SELECT unnest((SELECT string_to_array(string_agg(transaction_ids,','),',') FROM broadcasts WHERE ch_broadcast_id IN({1}))));", ch_driverid, String.Join(",", broadcast_ids));
 
             Query1 += string.Format(@"INSERT INTO trips(ch_trip_id, ch_driver_id, started_by, eb_created_at, ch_facility_id, ch_broadcast_ids)  
@@ -214,6 +214,8 @@ namespace ExpressBase.AuthServer
                 string status = (details.ContainsKey("tripStatus")) ? details.GetValue("tripStatus").ToString() : string.Empty;
                 JArray broadcast_details = JArray.Parse(details.GetValue("tripDetails").ToString());
                 int ch_facilityId = Convert.ToInt32(broadcast_details?[0]["facilityId"]);
+                int broadcastRequestId = Convert.ToInt32(broadcast_details?[0]["id"]["broadcastRequestId"]);
+
                 try
                 {
                     Uri uri = new Uri("https://chaalak.ai/Chaalak/rest/integration/trip/getTripById?tripId=" + ch_tripid);
@@ -240,9 +242,13 @@ namespace ExpressBase.AuthServer
                                                 SELECT id, {0}, '{1}', Now() FROM trips WHERE ch_trip_id = {0};", ch_tripid, status);
                 EbConnectionFactory.DataDB.ExecuteScalar<int>(Query2);
                 string Query = string.Format(@"UPDATE trips SET distance_covered = {0}, eb_modified_at = NOW() ,
-                                                      rate = ({0} * (select rate_per_km from merchant_master where ch_facility_id = {2})) + 
-                                                             ((select rate_per_customer from merchant_master where ch_facility_id = {2}))
-                                               WHERE ch_trip_id = {1} returning rate;", distanceCovered, ch_tripid, ch_facilityId);
+                                                      rate =    ( {0} * (select rate_per_km from merchant_master where ch_facility_id = {2}) )
+                                                                + 
+                                                                (
+                                                                 (select array_length(string_to_array(transaction_ids,','),1)  from broadcasts where ch_broadcast_id = 250 )*
+                                                                 (select rate_per_customer from merchant_master where ch_facility_id = {2})
+                                                                )
+                                               WHERE ch_trip_id = {1} returning rate;", distanceCovered, ch_tripid, ch_facilityId,broadcastRequestId);
                 double rate = EbConnectionFactory.DataDB.ExecuteScalar<Double>(Query);
                 //No.of customers *15(a flat rate set by merchant) + (Distance for driver to reach facility + distance of trip till the last customer) *rate per km
 
