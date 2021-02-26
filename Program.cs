@@ -11,8 +11,8 @@ namespace ExpressBase.AuthServer
         public static void Main(string[] args)
         {
             string env = Environment.GetEnvironmentVariable(EnvironmentConstants.ASPNETCORE_ENVIRONMENT);
-            if (env == CoreConstants.PRODUCTION)
-                Task.Run(() => EbWebsocket.InitialiseWssConnection());
+            //if (env == CoreConstants.PRODUCTION)
+            //    Task.Run(() => EbWebsocket.InitialiseWssConnection());
 
             CreateWebHostBuilder(args).Build().Run();
         }
