@@ -10,7 +10,10 @@ using ServiceStack.Auth;
 using ServiceStack.Configuration;
 using ServiceStack.Logging;
 using ServiceStack.Redis;
+using System.Threading;
+using System.Threading.Tasks;
 using System;
+using ServiceStack.Text;
 
 namespace ExpressBase.ServiceStack.Auth0
 {
@@ -25,7 +28,7 @@ namespace ExpressBase.ServiceStack.Auth0
             get { return LogManager.GetLogger(GetType()); }
         }
 
-        public override bool TryAuthenticate(IServiceBase authService, string UserName, string password)
+        public override async Task<bool> TryAuthenticateAsync(IServiceBase authService, string userName, string password, CancellationToken token = default)
         {
             try
             {
@@ -55,7 +58,7 @@ namespace ExpressBase.ServiceStack.Auth0
                 User _authUser = null;
                 if (whichContext.Equals(RoutingConstants.TC))
                 {
-                    _authUser = User.GetDetailsTenant(EbConnectionFactory.DataDB, UserName, password, ip);
+                    _authUser = User.GetDetailsTenant(EbConnectionFactory.DataDB, userName, password, ip);
                     Logger.Info("TryAuthenticate -> Tenant");
                 }
                 else if (request.Meta.ContainsKey("anonymous"))// && whichContext.Equals("bc"))
@@ -89,13 +92,13 @@ namespace ExpressBase.ServiceStack.Auth0
                 else if (request.Meta.ContainsKey("sso") && (whichContext.Equals(TokenConstants.DC) || whichContext.Equals(TokenConstants.UC) || whichContext.Equals(TokenConstants.BC) || whichContext.Equals(TokenConstants.MC)))
                 {
 
-                    _authUser = User.GetDetailsSSO(EbConnectionFactory.DataDB, UserName, whichContext, ip, deviceId, userAgent);
+                    _authUser = User.GetDetailsSSO(EbConnectionFactory.DataDB, userName, whichContext, ip, deviceId, userAgent);
                     Logger.Info("TryAuthenticate -> sso");
 
                 }
                 else
                 {
-                    _authUser = User.GetDetailsNormal(EbConnectionFactory.DataDB, UserName, password, whichContext, ip, deviceId, userAgent);
+                    _authUser = User.GetDetailsNormal(EbConnectionFactory.DataDB, userName, password, whichContext, ip, deviceId, userAgent);
                     Logger.Info("TryAuthenticate -> Normal");
 
                 }
@@ -142,13 +145,13 @@ namespace ExpressBase.ServiceStack.Auth0
             }
         }
 
-        public override object Authenticate(IServiceBase authService, IAuthSession session, Authenticate request)
+        public override async Task<object> AuthenticateAsync(IServiceBase authService, IAuthSession session, Authenticate request, CancellationToken token = default)
         {
             Logger.Info("Authenticate -> Start");
             AuthenticateResponse authResponse;
             try
             {
-                authResponse = base.Authenticate(authService, session, request) as AuthenticateResponse;
+                authResponse = await base.AuthenticateAsync(authService, session, request).ConfigAwait() as AuthenticateResponse;
                 if (authResponse.UserId != null)
                 {
                     var _customUserSession = authService.GetSession() as CustomUserSession;
@@ -184,7 +187,7 @@ namespace ExpressBase.ServiceStack.Auth0
             }
         }
 
-        public override object Logout(IServiceBase service, Authenticate request)
+        public override async Task<object> LogoutAsync(IServiceBase service, Authenticate request, CancellationToken token = default)
         {
             try
             {
@@ -197,7 +200,7 @@ namespace ExpressBase.ServiceStack.Auth0
             {
                 Console.WriteLine("Exception in Logout : " + ex.Message);
             }
-            return base.Logout(service, request);
+            return await base.LogoutAsync(service, request);
         }
     }
 }

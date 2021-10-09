@@ -54,9 +54,6 @@ namespace ExpressBase.ServiceStack.Auth0
                     if (userAuth == null)
                         throw HttpError.NotFound(ErrorMessages.UserNotExists.Localize(Request));
 
-                    if (jwtAuthProvider.IsAccountLocked(userRepo, userAuth))
-                        throw new AuthenticationException(ErrorMessages.UserAccountLocked.Localize(Request));
-
                     session = SessionFeature.CreateNewSession(Request, SessionExtensions.CreateRandomSessionId()) as CustomUserSession;
                     PopulateSession(userRepo, userAuth, session, userId);
                 }
