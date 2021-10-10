@@ -82,7 +82,10 @@ namespace ExpressBase.AuthServer
                                 {
                                     new MyCredentialsAuthProvider(AppSettings) { PersistSession = true },
                                     jwtprovider,
-                                }));
+                                })
+                {
+                    AllowGetAuthenticateRequests = req => true
+                });
 
                 string env = Environment.GetEnvironmentVariable(EnvironmentConstants.ASPNETCORE_ENVIRONMENT);
 
