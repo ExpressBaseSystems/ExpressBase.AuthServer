@@ -51,7 +51,7 @@ namespace ExpressBase.AuthServer
                     RequireSecureConnection = false,
                     //EncryptPayload = true,
 //#endif
-                    ExpireTokensIn = TimeSpan.FromSeconds(90),
+                    ExpireTokensIn = TimeSpan.FromSeconds(300),
                     ExpireRefreshTokensIn = TimeSpan.FromHours(24),
                     PersistSession = true,
                     SessionExpiry = TimeSpan.FromHours(12),
